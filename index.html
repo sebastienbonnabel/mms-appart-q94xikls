@@ -32,6 +32,13 @@ header.page h1{font-size:clamp(28px,4.4vw,42px);font-weight:600}
 .kicker{margin:0;font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--sea)}
 .updated{margin:0;font-size:13.5px;font-weight:600;color:var(--ink)}
 .love-bar{display:flex;gap:8px;flex-wrap:wrap}
+.arch{border:1.5px dashed var(--line);background:transparent;color:var(--ink-dim);border-radius:999px;padding:6px 12px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;min-height:36px}
+.arch .h{font-size:14px;line-height:1}
+details.tier.archive>summary{cursor:pointer;list-style:none}
+details.tier.archive>summary::-webkit-details-marker{display:none}
+details.tier.archive>summary h2::after{content:' ▸';font-size:.8em}
+details.tier.archive[open]>summary h2::after{content:' ▾'}
+details.tier.archive .row{opacity:.72}
 .love{border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:6px 12px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;min-height:36px}
 .love .h{font-size:15px;line-height:1;color:var(--ink-dim)}
 .love.on{border-color:#1f7a45;background:rgba(31,122,69,.1);color:#17603a}
@@ -158,7 +165,7 @@ footer{margin-top:52px;padding-top:16px;border-top:1px solid var(--line);color:v
   <p class="kicker">Marie, Marius et Sébastien</p>
   <h1>Location nouvel appart · MMS</h1>
   <p class="updated">Mis à jour le 27 septembre 2026 à 19 h 41</p>
-  <p class="lede">Annonces relevées chaque matin dans le 1er, le 2e et le 7e : deux chambres ou plus, environ 70 m², jusqu'à 2 300 € charges comprises. Chacun coche « À visiter » à son nom ; quand Marie et Sébastien l'ont coché tous les deux, le bien monte en tête.</p>
+  <p class="lede">Annonces relevées chaque matin dans le 1er, le 2e et le 7e : deux chambres ou plus, environ 70 m², jusqu'à 2 300 € charges comprises. Chacun coche « À visiter » à son nom ; quand Marie et Sébastien l'ont coché tous les deux, le bien monte en tête. « Archiver » met un bien de côté sans le supprimer : il reste en bas de page, dans « Archivées ».</p>
   <p class="syncnote" id="sync">Chargement des coches…</p>
 </header>
 <div class="stats" id="stats"></div>
@@ -174,13 +181,14 @@ const items=JSON.parse(document.getElementById('data').textContent);
 const HOOK='https://hook.eu2.make.com/p4j6u4a1tgl6s3cjnox235vnwjtud39s';
 const WHO=[['sebastien','Sébastien'],['marie','Marie']];
 let marks={}; const idx={}; items.forEach(it=>idx[it.id]=0);
-const voted=(id,w)=>!!marks[id+'_'+w], both=id=>WHO.every(([w])=>voted(id,w));
+const voted=(id,w)=>!!marks[id+'_'+w], archived=id=>voted(id,'archive'), both=id=>!archived(id)&&WHO.every(([w])=>voted(id,w));
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const eur=n=>n==null?null:Math.round(n).toLocaleString('fr-FR')+' €';
 const tiers=[{key:'both',label:'À visiter tous les deux',sub:'Marie et Sébastien ont tous les deux coché'},
  {key:'vue-mer',label:'Vue mer ou port confirmée',sub:"Le texte de l'annonce mentionne explicitement la vue"},
  {key:'bon',label:'Bons candidats',sub:'Conformes aux critères, sous 1 800 € CC'},
- {key:'reserve',label:"À vérifier avant d'appeler",sub:'Vue à confirmer au-dessus de 1 800 €, dépôt hors plafond, chambres à confirmer'}];
+ {key:'reserve',label:"À vérifier avant d'appeler",sub:'Vue à confirmer au-dessus de 1 800 €, dépôt hors plafond, chambres à confirmer'},
+ {key:'archive',label:'Archivées',sub:"Biens mis de côté par l'un de vous deux. « Désarchiver » les remet dans la liste."}];
 const COL={'vue-mer':'#0a4a4d','bon':'#1c2b2f','reserve':'#8f6212'};
 function fact(l,v,c){const na=v==null||v==='';return `<div class="${na?'na':(c||'')}"><dt>${esc(l)}</dt><dd>${esc(na?'Non indiqué':v)}</dd></div>`}
 function row(it){
@@ -213,18 +221,18 @@ function row(it){
     ${it.description?`<details class="desc"><summary>Texte complet de l'annonce</summary><p>${esc(it.description)}</p></details>`:''}
     <div class="actions">
       <a class="cta" href="${esc(it.url)}" target="_blank" rel="noopener">Voir l'annonce sur Leboncoin →</a>
-      <div class="love-bar">${WHO.map(([w,nm])=>`<button class="love ${voted(it.id,w)?'on':''}" data-act="vote" data-who="${w}" aria-pressed="${voted(it.id,w)}"><span class="h">${voted(it.id,w)?'✓':'○'}</span>À visiter · ${nm}</button>`).join('')}</div>
+      <div class="love-bar">${archived(it.id)?'':WHO.map(([w,nm])=>`<button class="love ${voted(it.id,w)?'on':''}" data-act="vote" data-who="${w}" aria-pressed="${voted(it.id,w)}"><span class="h">${voted(it.id,w)?'✓':'○'}</span>À visiter · ${nm}</button>`).join('')}<button class="arch" data-act="archive"><span class="h">${archived(it.id)?'↺':'⌫'}</span>${archived(it.id)?'Désarchiver':'Archiver'}</button></div>
     </div></div></article>`;
 }
 let omap=null, olayer=null; const mini={};
 function render(){
-  const c={'vue-mer':0,bon:0,reserve:0}; items.forEach(it=>c[it.tier]++);
+  const live=items.filter(it=>!archived(it.id)); const c={'vue-mer':0,bon:0,reserve:0}; live.forEach(it=>c[it.tier]++);
   const nb=items.filter(it=>both(it.id)).length;
-  document.getElementById('stats').innerHTML=[[items.length,'annonces'],[nb,'à visiter tous les deux'],[c['vue-mer'],'vue mer ou port'],[items.filter(it=>it.pk==='yes').length,'avec parking inclus']].map(([n,l])=>`<div class="stat"><div class="n">${n}</div><div class="l">${l}</div></div>`).join('');
-  const groups=tiers.map(t=>({t,list:t.key==='both'?items.filter(it=>both(it.id)):items.filter(it=>it.tier===t.key&&!both(it.id))})).filter(g=>g.list.length);
+  document.getElementById('stats').innerHTML=[[live.length,'annonces'],[nb,'à visiter tous les deux'],[c['vue-mer'],'vue mer ou port'],[live.filter(it=>it.pk==='yes').length,'avec parking inclus']].map(([n,l])=>`<div class="stat"><div class="n">${n}</div><div class="l">${l}</div></div>`).join('');
+  const groups=tiers.map(t=>({t,list:t.key==='both'?items.filter(it=>both(it.id)):t.key==='archive'?items.filter(it=>archived(it.id)):items.filter(it=>it.tier===t.key&&!both(it.id)&&!archived(it.id))})).filter(g=>g.list.length);
   document.getElementById('jump').innerHTML=groups.map(g=>`<a href="#${g.t.key}">${esc(g.t.label)} (${g.list.length})</a>`).join('');
   Object.values(mini).forEach(m=>m.remove()); for(const k in mini) delete mini[k];
-  document.getElementById('sections').innerHTML=groups.map(g=>`<section class="tier" id="${g.t.key}" data-tier="${g.t.key}"><div class="tier-head"><h2>${esc(g.t.label)}</h2><span class="sub">${esc(g.t.sub)}</span></div><div class="rows">${g.list.map(row).join('')}</div></section>`).join('');
+  document.getElementById('sections').innerHTML=groups.map(g=>g.t.key==='archive'?`<details class="tier archive" id="archive" data-tier="archive"><summary class="tier-head"><h2>${esc(g.t.label)} (${g.list.length})</h2><span class="sub">${esc(g.t.sub)}</span></summary><div class="rows">${g.list.map(row).join('')}</div></details>`:`<section class="tier" id="${g.t.key}" data-tier="${g.t.key}"><div class="tier-head"><h2>${esc(g.t.label)}</h2><span class="sub">${esc(g.t.sub)}</span></div><div class="rows">${g.list.map(row).join('')}</div></section>`).join('');
   document.querySelectorAll('.mm').forEach(el=>io&&io.observe(el));
   drawOverview();
 }
@@ -239,7 +247,7 @@ function drawOverview(){
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(omap);
     const pts=items.filter(it=>it.lat).map(it=>[it.lat,it.lng]); if(pts.length) omap.fitBounds(pts,{padding:[30,30]});}
   if(olayer) olayer.remove(); olayer=L.layerGroup().addTo(omap);
-  items.filter(it=>it.lat).forEach(it=>{const m=mark(it,olayer,true);
+  items.filter(it=>it.lat&&!archived(it.id)).forEach(it=>{const m=mark(it,olayer,true);
     m.bindPopup(`<b>${esc(it.district)}</b> · ${eur(it.cc)} CC<br>${it.loc_prec==='quartier'?'Position approximative<br>':''}<a href="#b${it.id}">Voir le bien ↓</a>`);});
   document.getElementById('map-legend').innerHTML=[['#1f7a45','À visiter tous les deux'],[COL['vue-mer'],'Vue mer / port'],[COL.bon,'Bon candidat'],[COL.reserve,'À vérifier']].map(([c,l])=>`<span><i style="background:${c}"></i>${esc(l)}</span>`).join('');
 }
@@ -265,6 +273,10 @@ document.addEventListener('click',async e=>{
   if(act==='prev'||act==='next'){e.stopPropagation();setPhoto(id,(idx[id]||0)+(act==='next'?1:-1));return}
   if(act==='go'){setPhoto(id,+b.dataset.k);return}
   if(act==='zoom'){const it=items.find(x=>x.id===id);if(it.photo_urls.length)openLb(it,idx[id]||0);return}
+  if(act==='archive'){const on=!archived(id);b.disabled=true;b.lastChild.textContent='Enregistrement…';
+    try{await call(id,'archive',on);render()}
+    catch(err){b.disabled=false;b.lastChild.textContent='Pas enregistré, réessaie';sync.className='syncnote err';sync.textContent="L'archivage n'a pas été enregistré (connexion ?)."}
+    return}
   if(act==='vote'){const w=b.dataset.who,on=!voted(id,w);b.disabled=true;b.lastChild.textContent='Enregistrement…';
     try{await call(id,w,on);render();const el=document.getElementById('b'+id);if(el)el.scrollIntoView({block:'nearest'})}
     catch(err){b.disabled=false;b.lastChild.textContent='Pas enregistré, réessaie';sync.className='syncnote err';sync.textContent="La coche n'a pas été enregistrée (connexion ?)."}}
